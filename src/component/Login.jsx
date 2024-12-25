@@ -3,23 +3,52 @@ import { Form, Button, Container, Row, Col, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
+import { ref, get } from 'firebase/database'; // Import hàm cần thiết từ Firebase
+import { database } from '../firebaseConfig'; // Đảm bảo rằng đường dẫn này đúng với tệp firebase.js của bạn
 import 'bootstrap/dist/css/bootstrap.min.css';
+
 function Login() {
-    const [email, setEmail] = useState('');
+    const [username, setuserName] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (email === '' || password === '') {
+        if (username === '' || password === '') {
             setError('Please fill in all fields');
             return;
         }
+        
         setError('');
-        // Logic đăng nhập (ví dụ)
-        console.log('Email:', email);
-        console.log('Password:', password);
+
+        // Kiểm tra xem tên người dùng có tồn tại không
+        try {
+            const userRef = ref(database, 'users/' + username);
+            const snapshot = await get(userRef);
+
+            if (!snapshot.exists()) {
+                setError('Username does not exist');
+                return;
+            }
+
+            // Lấy thông tin người dùng từ snapshot
+            const userData = snapshot.val();
+
+            // Kiểm tra mật khẩu
+            if (userData.password !== password) {
+                setError('Incorrect password');
+                return;
+            }
+
+            // Nếu tên người dùng và mật khẩu đều đúng, chuyển hướng đến trang chính
+            console.log('Login successful');
+            navigate('/home_user', { state: { user: userData } }); // Gửi thông tin người dùng
+
+        } catch (error) {
+            console.error('Error logging in:', error);
+            setError('Error logging in. Please try again.');
+        }
     };
 
     const handleRegisterRedirect = () => {
@@ -45,13 +74,13 @@ function Login() {
                         <h3 className="text-center">Login</h3>
                         {error && <Alert variant="danger">{error}</Alert>}
                         <Form onSubmit={handleSubmit}>
-                            <Form.Group controlId="formBasicEmail">
-                                <Form.Label>Email address</Form.Label>
+                            <Form.Group controlId="formBasicUserName">
+                                <Form.Label>UserName</Form.Label>
                                 <Form.Control
-                                    type="email"
-                                    placeholder="Enter email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    type="text"
+                                    placeholder="Enter username"
+                                    value={username}
+                                    onChange={(e) => setuserName(e.target.value)}
                                 />
                             </Form.Group>
 

@@ -1,148 +1,129 @@
-import React, { useState } from 'react';
-import { Nav, Navbar, Dropdown, Container, Modal, Button } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Modal, Button } from 'react-bootstrap';
 import { Bar } from 'react-chartjs-2';
-import Tab from 'react-bootstrap/Tab';
 import Tabs from 'react-bootstrap/Tabs';
+import Tab from 'react-bootstrap/Tab';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap-icons/font/bootstrap-icons.css'; // Import Bootstrap Icons
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { database } from '../firebaseConfig'; // Import Firebase config
+import { ref, onValue } from 'firebase/database'; // Import Firebase database functions
+import CustomNavbar from './CustomNavbar';
 
-// Register necessary chart components
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 function Home_user() {
-    // Data for temperature and humidity charts
-    const [showModal, setShowModal] = useState(true);
-    const temperatureData = {
-        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], // Labels for each day
-        datasets: [
-            {
-                label: 'Temperature (°C)',
-                data: [22, 25, 24, 23, 26, 28, 27], // Example temperature data
-                backgroundColor: 'rgba(255, 99, 132, 0.6)', // Custom color for the temperature chart
-                borderColor: 'rgba(255, 99, 132, 1)',
-                borderWidth: 1,
-            },
-        ],
-    };
+    const [temperatureData, setTemperatureData] = useState(null);
+    const [humidityData, setHumidityData] = useState(null);
 
-    const humidityData = {
-        labels: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-        datasets: [
-            {
-                label: 'Humidity (%)',
-                data: [60, 65, 70, 68, 75, 80, 72],
-                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1,
-            },
-        ],
-    };
+    // Fetch data from Firebase
+    useEffect(() => {
+        const historyRef = ref(database, 'system/history'); // Reference to 'system/history' in Firebase
 
-    // Chart options (you can adjust titles, axes, etc.)
+        const unsubscribe = onValue(historyRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const data = snapshot.val();
+                const allKeys = Object.keys(data); // Get all keys (timestamps)
+                const latestKeys = allKeys.slice(-10); // Get the last 10 keys
+                const latestData = latestKeys.reduce((acc, key) => {
+                    acc[key] = data[key];
+                    return acc;
+                }, {});
+
+                const labels = Object.keys(latestData); // Use the latest timestamps as labels
+                const tempValues = Object.values(latestData).map((item) => item.temp); // Get 'temp' values
+                const humidValues = Object.values(latestData).map((item) => item.humid); // Get 'humid' values
+
+                // Set temperature data
+                setTemperatureData({
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            data: tempValues,
+                            backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                        },
+                    ],
+                });
+
+                // Set humidity data
+                setHumidityData({
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Humidity (%)',
+                            data: humidValues,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                        },
+                    ],
+                });
+            } else {
+                console.error('No data available');
+            }
+        });
+
+        return () => unsubscribe(); // Cleanup listener when component unmounts
+    }, []);
+
     const chartOptions = {
         responsive: true,
         plugins: {
             title: {
                 display: true,
-                text: 'Daily Data', // Title for each chart
-            },
-            tooltip: {
-                callbacks: {
-                    label: (tooltipItem) => `${tooltipItem.dataset.label}: ${tooltipItem.raw}`, // Custom tooltip label
-                },
+                text: 'Sensor Data',
             },
         },
         scales: {
             x: {
                 title: {
                     display: true,
-                    text: 'Day', // X-axis label
+                    text: 'Timestamp',
                 },
             },
             y: {
                 title: {
                     display: true,
-                    text: 'Value', // Y-axis label
+                    text: 'Value',
                 },
                 beginAtZero: true,
             },
         },
     };
-    const handleShow = () => setShowModal(true);
 
-    // Function to handle modal close
-    const handleClose = () => setShowModal(false);
+
     return (
         <>
-            <Navbar expand="lg" className="bg-body-tertiary">
-                <Container>
-                    <Navbar.Brand href="home_user">Smart Home</Navbar.Brand>
-                    <Navbar.Toggle aria-controls="basic-navbar-nav" />
-                    <Navbar.Collapse id="basic-navbar-nav" className="justify-content-between">
-                        <Nav>
-                            <Nav.Link href="statistic">Statistic</Nav.Link>
-                            <Nav.Link href="setting">Setting</Nav.Link>
-                        </Nav>
-                    </Navbar.Collapse>
-                    <Dropdown align="end">
-                        <Dropdown.Toggle variant="link" bsPrefix="p-0" id="dropdown-user">
-                            <i className="bi bi-person-circle" style={{ fontSize: '24px' }}></i>
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu>
-                            <Dropdown.Item href="#user-info">Thông tin</Dropdown.Item>
-                            <Dropdown.Item href="#settings">Cài đặt</Dropdown.Item>
-                            <Dropdown.Divider />
-                            <Dropdown.Item href="#logout">Đăng xuất</Dropdown.Item>
-                        </Dropdown.Menu>
-                    </Dropdown>
-                </Container>
-            </Navbar>
-
+            <CustomNavbar />
             <div className="p-5">
                 <div className="text-center">
-                    <h1>Hello User1</h1>
+                    <h1>Welcome to the Dashboard</h1>
                 </div>
                 <div className="p-3">
-                    <Tabs defaultActiveKey="temperature" id="uncontrolled-tab-example" className="mb-3">
+                    <Tabs defaultActiveKey="temperature" id="data-tabs" className="mb-3">
                         <Tab eventKey="temperature" title="Temperature">
-                            <div style={{ width: '80%', height: '300px', margin: '0 auto' }}>
-                                <Bar data={temperatureData} options={chartOptions} />
-                            </div>
+                            {temperatureData ? (
+                                <div style={{ width: '80%', height: '300px', margin: '0 auto' }}>
+                                    <Bar data={temperatureData} options={chartOptions} />
+                                </div>
+                            ) : (
+                                <p>Loading temperature data...</p>
+                            )}
                         </Tab>
                         <Tab eventKey="humidity" title="Humidity">
-                            <div style={{ width: '80%', height: '300px', margin: '0 auto' }}>
-                                <Bar data={humidityData} options={chartOptions} />
-                            </div>
+                            {humidityData ? (
+                                <div style={{ width: '80%', height: '300px', margin: '0 auto' }}>
+                                    <Bar data={humidityData} options={chartOptions} />
+                                </div>
+                            ) : (
+                                <p>Loading humidity data...</p>
+                            )}
                         </Tab>
                     </Tabs>
                 </div>
-
-                <Modal show={showModal} onHide={handleClose} >
-                    <Modal.Dialog >
-                        <Modal.Header closeButton>
-                            <Modal.Title>Cảnh báo</Modal.Title>
-                        </Modal.Header>
-
-                        <Modal.Body>
-                            <p style={{ color: 'red' }}>⚠️ Phát hiện có cháy! ⚠️</p>
-                        </Modal.Body>
-
-                        <Modal.Footer>
-                            <Button variant="secondary" onClick={handleClose}>
-                                Close
-                            </Button>
-                        </Modal.Footer>
-                    </Modal.Dialog>
-                </Modal>
-            </div >
+            </div>
         </>
     );
 }
